@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+requests
+mysql-connector-python
+langchain-community
+sentence-transformers
+chromadb
+pickle5
