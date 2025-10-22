@@ -62,6 +62,9 @@ role = response.json()
 with open("known_websites.json", "r", encoding="utf-8") as f:
     website = json.load(f)
 
+response = requests.post("https://swthrapp.azurewebsites.net/user_info")
+myteam_infomation = response.json()
+
 # ------------------------Timestamp----------------------------
 def get_current_time():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -251,7 +254,6 @@ def create_leave_url(leave_type, reason, from_date, to_date, period1="fullday", 
 
 def extract_leave_reason(question):
     """Extract leave reason from message"""
-    # Try different patterns
     patterns = [
         r"because\s+(.+?)(?:\s|$)",
         r"due to\s+(.+?)(?:\s|$)",
@@ -264,7 +266,7 @@ def extract_leave_reason(question):
         if match:
             return match.group(1).strip()
     
-    # Default reasons based on leave type
+    # ✅ เพิ่ม default reasons สำหรับ leave type ใหม่
     question_lower = question.lower()
     if "sick" in question_lower or "ป่วย" in question_lower:
         return "Not feeling well"
@@ -272,6 +274,16 @@ def extract_leave_reason(question):
         return "Annual leave"
     elif "personal" in question_lower or "กิจ" in question_lower:
         return "Personal business"
+    elif "wfh" in question_lower or "work from home" in question_lower or "ทำงานที่บ้าน" in question_lower:
+        return "Work from home"
+    elif "business" in question_lower or "ธุรกิจ" in question_lower or "ไปต่างจังหวัด" in question_lower:
+        return "Business travel"
+    elif "family" in question_lower or "ครอบครัว" in question_lower:
+        return "Family leave"
+    elif "external" in question_lower or "กิจกรรมภายนอก" in question_lower:
+        return "External activity"
+    elif "other" in question_lower or "อื่นๆ" in question_lower:
+        return "Other leave"
     
     return "Leave request"
 
@@ -313,17 +325,20 @@ def chat(payload: dict, user_id: int = None):
     filtered_database = filter_database_by_role(
         database_memory, 
         current_role, 
-        current_user,  # ✅ ส่งเป็น int
+        current_user,
         role_view_employee_ids
     )
     
     filtered_feedback = filter_feedback_by_role(
         feedback, 
         current_role, 
-        current_user,  # ✅ ส่งเป็น int
+        current_user,
         role_view_employee_ids,
         role
     )
+    
+    # ✅ เพิ่มข้อมูลพนักงานทั้งหมด (ไม่กรอง) สำหรับคำถามทั่วไป
+    all_employees = role  # ข้อมูลพนักงานทั้งหมด
     
     KNOWN_WEBSITES = {
         "skywave": "https://www.skywavetechnologies.com",
@@ -337,7 +352,7 @@ def chat(payload: dict, user_id: int = None):
             if key in question.lower():
                 return {"action": "open_website", "url": url, "message": f"Opening {key} website..."}
 
-    # Create prompt for AI to detect leave requests
+    # Create prompt for AI
     prompt = f"""
 You are **SkyBot**, an HR Assistant for Skywave Technologies (SWT) company.
 
@@ -357,24 +372,44 @@ At the heart of our business values are our service excellence based on years of
 ### RELEVANT COMPANY POLICY
 {work_rules}
 
-### EMPLOYEE FEEDBACK (Filtered based on your access level)
-{filtered_feedback}
-# Note: If asked about employee feedback, please explain and summarize how the employee is doing
+### EMPLOYEE DIRECTORY (✅ PUBLIC - Available to everyone)
+{all_employees}
+**Note:** This employee directory is available to all employees. You can answer questions about:
+- Who works in which team
+- Employee names, nicknames, and roles
+- Team structure
+- General employee information
+This information is NOT restricted.
 
-### DATABASE - Leave Data (Filtered based on your access level)
-{filtered_database} 
-# Note: If asked about leave data, please provide accurate numbers. You can only see data for employees you have access to.
+### MY TEAM employee information
+{myteam_infomation}
+
+### EMPLOYEE FEEDBACK (⚠️ RESTRICTED - Filtered based on your access level)
+{filtered_feedback}
+**⚠️ IMPORTANT:** This feedback data is filtered based on user role.
+- You can ONLY see feedback for employees you have permission to view
+- If asked about feedback, explain and summarize ONLY the data you can see
+- If no data is visible, politely inform the user they don't have permission
+
+### DATABASE - Leave Data (⚠️ RESTRICTED - Filtered based on your access level)
+{filtered_database}
+**⚠️ IMPORTANT:** This leave data is filtered based on user role.
+- You can ONLY see leave data for employees you have permission to view
+- Provide accurate numbers ONLY for employees in your permission scope
+- If asked about leave data you cannot see, politely inform the user they don't have permission
 
 ### WEBSITES
 {website}
 
-### ACCESS CONTROL NOTICE
+### ACCESS CONTROL RULES
 Current User Role: {current_role}
 Current User Employee ID: {current_user}
-You can view data for Employee IDs: {role_view_employee_ids}
-- Admin: Can view all employee data
-- Manager: Can view own data and team members' data  
-- Staff: Can only view own data
+Restricted Data Access for Employee IDs: {role_view_employee_ids}
+
+**Access Rules Summary:**
+1. ✅ **EMPLOYEE DIRECTORY**: Everyone can see (no restrictions)
+2. ⚠️ **FEEDBACK**: Restricted by role (Admin=all, Manager=team, Staff=self only)
+3. ⚠️ **LEAVE DATA**: Restricted by role (Admin=all, Manager=team, Staff=self only)
 
 ### CURRENT USER
 Name: {current_name}
@@ -384,47 +419,47 @@ Employee ID: {current_user}
 ### USER QUESTION
 {question}
 
-You can only access information for employees in your permission scope.
-
 ### IMPORTANT: LEAVE REQUEST DETECTION
-If the message is a leave request (sick leave, personal leave, annual leave), respond in JSON format:
+If the message is a leave request (sick leave, personal leave, annual leave, etc.), respond in JSON format:
 
-{{
+{{{{
   "action": "leave_request",
-  "data": {{
-    "employee_name": "Full name of employee (from EMPLOYEE DIRECTORY)",
-    "leave_type": "sick" or "annual" or "personal",
+  "data": {{{{
+    "employee_name": "{current_name}",
+    "leave_type": "annual" or "personal" or "sick" or "other" or "wfh" or "business" or "family" or "external",
     "leave_date": "YYYY-MM-DD",
     "leave_date_end": "YYYY-MM-DD" (if multiple days, otherwise same as leave_date),
     "reason": "Reason for leave (if mentioned, otherwise use default)",
     "period": "fullday" or "halfday",
     "half_period": "morning" or "afternoon" (if period="halfday"),
     "message": "Confirmation message"
-  }}
-}}
+  }}}}
+}}}}
+
+Leave Type Mapping:
+- "annual" = Annual Leave (ลาพักร้อน)
+- "personal" = Personal Leave (ลากิจ)
+- "sick" = Sick Leave (ลาป่วย)
+- "other" = Other Leave (ลาอื่นๆ)
+- "wfh" = Work From Home (ทำงานที่บ้าน)
+- "business" = Business Travel (เดินทางไปธุระ)
+- "family" = Family Leave (ลาครอบครัว)
+- "external" = External Activity (กิจกรรมภายนอก)
 
 Notes:
-- Use full_name from EMPLOYEE DIRECTORY only
+- Always use current user name: {current_name}
 - If "today" is mentioned, use date {datetime.now().strftime("%Y-%m-%d")}
 - leave_type: "sick" = sick leave, "annual" = annual leave, "personal" = personal leave
 - period: "fullday" = full day, "halfday" = half day
 - half_period: "morning" or "afternoon" (when period="halfday")
 - If period not specified, use "fullday" as default
-
-### CURRENT USER
-Name: {current_name}
-Role: {current_role}
-Employee ID: {current_user}
-
-### USER QUESTION
-{question}
 """
 
     # Call Gemini API
     body = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {
-            "temperature": 0.04,
+            "temperature": 0.1,
             "topK": 1,
             "topP": 0.1
         }
@@ -470,7 +505,12 @@ Employee ID: {current_user}
                     leave_type_display = {
                         "sick": "Sick Leave",
                         "annual": "Annual Leave",
-                        "personal": "Personal Leave"
+                        "personal": "Personal Leave",
+                        "other": "Other Leave",
+                        "wfh": "Work From Home",
+                        "business": "Business Travel",
+                        "family": "Family Leave",
+                        "external": "External Activity"
                     }
                     
                     period_display = {
@@ -494,7 +534,7 @@ Employee ID: {current_user}
 Date: {from_date}{' to ' + to_date if from_date != to_date else ''}
 Reason: {reason}
 
-{ai_message if ai_message else 'Please click the link below to confirm your leave request 👇'}
+{ai_message if ai_message else 'Take care of your health. Get enough rest. 😊'}
 
 Leave Request Link: {leave_url}
 """
@@ -537,4 +577,5 @@ def serve_widget_script():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("mirra:app", host="0.0.0.0", port=8099, reload=True)
+    port = int(os.getenv("PORT", 10000))  # ✅ Render จะส่ง PORT มาเอง
+    uvicorn.run("main:app", host="0.0.0.0", port=port)

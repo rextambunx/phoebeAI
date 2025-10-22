@@ -1,0 +1,36 @@
+[
+{
+  "full_name": "Methasit Tambun",
+  "nickname": "Rex",
+  "job_title": "IoT Developer",
+  "gender": "Male",
+  "birthdate": "20 July",
+  "age": 22,
+  "mobile": "0846522756",
+  "email": "methasit@skywavetechnologies.com",
+  "start_date": "2025-06-23"
+}
+,
+{
+  "full_name": "Witsarush Muangsakorn",
+  "nickname": "Nuer",
+  "job_title": "IoT Developer",
+  "gender": "Male",
+  "birthdate": "21 November",
+  "age": 23,
+  "mobile": " ",
+  "email": "witsarush@skywavetechnologies.com",
+  "start_date": "2025-06-09"
+},
+{
+  "full_name": "Natthaphol Mokedara",
+  "nickname": "Toon",
+  "job_title": "Software Development Manager",
+  "gender": "Male",
+  "birthdate": "01 April",
+  "age": 45,
+  "mobile": " ",
+  "email": "natthaphol@skywavetechnologies.com",
+  "start_date": "2015-08-01"
+}
+]

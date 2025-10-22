@@ -8,7 +8,7 @@
   const defaultConfig = {
     title: 'Skywave Assistant',
     subtitle: 'Information about Skywave Technologies',
-    endpoint: 'https://znp6js7q-8099.asse.devtunnels.ms/chat?user_id=9',
+    endpoint: 'https://znp6js7q-8000.asse.devtunnels.ms/chat?user_id=9',
     srLang: 'en-US'
   };
   
@@ -41,7 +41,7 @@
     .chat-header p { margin: 0; font-size: 12px; opacity: 0.9; }
     .close-btn { background: transparent; border: none; color: #ffffff; cursor: pointer; padding: 4px; border-radius: 4px; transition: background 0.2s; }
     .close-btn:hover { background-color: rgba(255, 255, 255, 0.1); }
-    .messages-container { flex: 1; overflow-y: auto; padding: 19px; display: flex; flex-direction: column; gap: 12px; background-color: #F9FAFB; }
+    .messages-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; background-color: #F9FAFB; }
     .message { display: flex; }
     .message.user { justify-content: flex-end; }
     .message.bot { justify-content: flex-start; }
